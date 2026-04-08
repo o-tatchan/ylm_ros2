@@ -13,6 +13,7 @@ endif()
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(Boost REQUIRED)
+find_package(CURL REQUIRED)
 
 set(YLM_INCLUDE_DIRS
     "include;")
@@ -22,12 +23,24 @@ include_directories(include ${YLM_INCLUDE_DIRS} ${Boost_INCLUDE_DIRS})
 add_library(ylm_client STATIC src/lumotive_client_interface.cpp src/ylm_client.cpp)
 target_link_libraries(ylm_client ${Boost_LIBRARIES})
 
+add_library(api_client STATIC src/api_client.cpp)
+target_link_libraries(api_client CURL::libcurl)
+
 add_executable(lumotive_driver src/lumotive_driver.cpp src/lumotive_cloud_creation.cpp)
 ament_target_dependencies(lumotive_driver rclcpp sensor_msgs)
 target_link_libraries(lumotive_driver ylm_client ${rclcpp_LIBRARIES})
 
+add_executable(api_driver src/api_driver.cpp src/api_driver.cpp)
+ament_target_dependencies(api_driver rclcpp)
+target_link_libraries(api_driver api_client ${rclcpp_LIBRARIES})
+
 install(TARGETS
   lumotive_driver
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS
+  api_driver
   DESTINATION lib/${PROJECT_NAME}
 )
 

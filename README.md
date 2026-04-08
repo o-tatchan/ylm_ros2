@@ -32,6 +32,11 @@ Once the workspace is setup you can proceed to the Installation section.
 
 Installation
 -------------
+Install library for REST API crient:
+```
+sudo apt-get install curl libcurl4-openssl-dev
+```
+
 Clone this package into the *src* folder of your ROS2 workspace using:
 ```
 git clone https://github.com/Hokuyo-aut/ylm_ros2
@@ -74,6 +79,12 @@ Tip for showing help related to input args:
 ```
 ros2 launch ylm_ros2 m20_launcher.launch.py --show-args
 ```
+
+To launch the node with addionally nodes:
+```
+ros2 launch ylm_ros2 m20_launcher_optionally.py sensor_ip_:=192.168.0.10 launch_api_client_:=<true or false> launch_rviz_:=<true or false>
+```
+(if launch_api_client_:=true , auto start scan and stop scan.)
 
 Config file presentation
 -------------------------
