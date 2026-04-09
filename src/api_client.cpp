@@ -72,6 +72,67 @@ std::string LumotiveAPIClient::post_scan_parameters(const std::string& parameter
     return result;
 }
 
+std::string LumotiveAPIClient::get_persistent_settings(){
+    std::string endpoint  = "/persistent_settings";
+    std::string result;
+    std::string dummy;
+    client_library_wrapper(GET, endpoint, dummy, result);
+    return result;
+}
+
+std::string LumotiveAPIClient::post_persistent_settings(const std::string& parameters){
+    std::string endpoint  = "/persistent_settings";
+    std::string result;
+    client_library_wrapper(POST, endpoint, parameters, result);
+    return result;
+}
+
+std::string LumotiveAPIClient::post_restart(){
+    std::string endpoint  = "/restart";
+    std::string result;
+    std::string dummy;
+    client_library_wrapper(POST, endpoint, dummy, result);
+    return result;
+}
+std::string LumotiveAPIClient::post_disable(){
+    std::string endpoint  = "/disable";
+    std::string result;
+    std::string dummy;
+    client_library_wrapper(POST, endpoint, dummy, result);
+    return result;
+}
+
+std::string LumotiveAPIClient::get_logs(){
+    /*
+     仕様書のREST APIの項目にはデータはjson形式で送受信とある.
+     一方で、logsの項目には暗号化されたzipファイルをダウンロードできるとある.
+     Content-Typeは application/json? application/zip? multipart/from-data?
+    */
+    std::string endpoint  = "/logs";
+    std::string result;
+    std::string dummy;
+    client_library_wrapper(GET, endpoint, dummy, result);
+    return result;
+}
+
+std::string LumotiveAPIClient::get_messages(){
+    std::string endpoint  = "/messages";
+    std::string result;
+    std::string dummy;
+    client_library_wrapper(GET, endpoint, dummy, result);
+    return result;
+}
+
+std::string LumotiveAPIClient::get_time_sync_status(){
+    std::string endpoint  = "/time_sync_status";
+    std::string result;
+    std::string dummy;
+    client_library_wrapper(GET, endpoint, dummy, result);
+    return result;
+}
+
+
+
 size_t LumotiveAPIClient::curl_callback(char* ptr,size_t size,size_t nmemb,std::string *responce_data){
     size_t total_size=size * nmemb;
     responce_data->append(ptr,total_size);
@@ -82,7 +143,10 @@ bool LumotiveAPIClient::client_library_wrapper(const int method, const std::stri
     std::string url = "http://" + sensor_ip_ + endpoint;
 
     // using libcurl.
-    // （課題）通信を複数回行う場合、ハンドラを使いまわすほうがリソース的には効率的になる.
+    /*
+     通信を複数回行う場合、ハンドラーを使い回す方がリソース的には効率的.
+     今回は呼び出される回数は少ないと考え、毎回ハンドラーを生成している.
+    */
     CURL*       curl_handler = NULL;
     CURLcode    curl_code;
  
