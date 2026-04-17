@@ -102,19 +102,6 @@ std::string LumotiveAPIClient::post_disable(){
     return result;
 }
 
-std::string LumotiveAPIClient::get_logs(){
-    /*
-     仕様書のREST APIの項目にはデータはjson形式で送受信とある.
-     一方で、logsの項目には暗号化されたzipファイルをダウンロードできるとある.
-     Content-Typeは application/json? application/zip? multipart/from-data?
-    */
-    std::string endpoint  = "/logs";
-    std::string result;
-    std::string dummy;
-    client_library_wrapper(GET, endpoint, dummy, result);
-    return result;
-}
-
 std::string LumotiveAPIClient::get_messages(){
     std::string endpoint  = "/messages";
     std::string result;
@@ -143,10 +130,6 @@ bool LumotiveAPIClient::client_library_wrapper(const int method, const std::stri
     std::string url = "http://" + sensor_ip_ + endpoint;
 
     // using libcurl.
-    /*
-     通信を複数回行う場合、ハンドラーを使い回す方がリソース的には効率的.
-     今回は呼び出される回数は少ないと考え、毎回ハンドラーを生成している.
-    */
     CURL*       curl_handler = NULL;
     CURLcode    curl_code;
  
@@ -181,15 +164,16 @@ bool LumotiveAPIClient::client_library_wrapper(const int method, const std::stri
 }
 
 // sample
-// int main() {
-//     LumotiveAPIClient client;
-//     client.set_sensor_ip("192.168.0.10");
+/*
+int main() {
+    LumotiveAPIClient client;
+    client.set_sensor_ip("192.168.0.10");
     
-//     std::string result;
+    std::string result;
     
-//     result = client.post_start_scan();
-//     std::cout << "start_scan() : " << result << std::endl;
+    result = client.post_start_scan();
+    std::cout << "start_scan() : " << result << std::endl;
 
-//     return 0;
-// }
-
+    return 0;
+}
+*/

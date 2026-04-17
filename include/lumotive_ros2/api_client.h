@@ -42,7 +42,7 @@ namespace lumotive_api_client{
 
         std::string post_disable();
         
-        std::string get_logs();
+        // std::string get_logs();
         
         std::string get_messages();
         
