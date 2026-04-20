@@ -1,0 +1,3 @@
+[submodule "ylm_configurator"]
+	path = ylm_configurator
+	url = https://github.com/Hokuyo-aut/ylm_configurator.git
