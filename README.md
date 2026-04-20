@@ -34,10 +34,19 @@ Installation
 -------------
 Clone this package into the *src* folder of your ROS2 workspace using:
 ```
-git clone https://github.com/Hokuyo-aut/ylm_ros2
+git clone --recursive https://github.com/Hokuyo-aut/ylm_ros2
 ```
 
-Make sure that Boost is installed on the machine.
+Make sure that Boost(>= 1.75) is installed on the machine.
+If not installed:
+```
+mkdir ~/libtmp ; cd ~/libtmp
+wget https://archives.boost.io/release/1.75.0/source/boost_1_75_0.tar.gz
+tar -xvf boost_1_75_0.tar.gz
+cd boost_1_75_0
+./bootstrap.sh
+sudo ./b2 install --prefix=/usr/local
+```
 
 Build the package in the workspace using (don't forget to source your workspace afterward):
 
@@ -74,6 +83,12 @@ Tip for showing help related to input args:
 ```
 ros2 launch ylm_ros2 m20_launcher.launch.py --show-args
 ```
+
+To launch the node with api_driver:
+```
+ros2 launch ylm_ros2 m20_launcher_extended.launch.py sensor_ip_:=192.168.0.10 launch_api_client_:=<true or false (default:true)> launch_rviz_:=<true or false (default:true)>
+```
+(if launch_api_client_:=true , auto start scan and stop scan.)
 
 Config file presentation
 -------------------------

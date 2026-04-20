@@ -1,5 +1,10 @@
-cmake_minimum_required(VERSION 3.5)
+cmake_minimum_required(VERSION 3.10)
+
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 project(ylm_ros2)
+
+add_subdirectory(ylm_configurator/YlmConfigurator)
 
 if(NOT CMAKE_CXX_STANDARD)
   set(CMAKE_CXX_STANDARD 17)
@@ -12,7 +17,7 @@ endif()
 # find dependencies
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(Boost REQUIRED)
+find_package(Boost REQUIRED COMPONENTS thread json)
 
 set(YLM_INCLUDE_DIRS
     "include;")
@@ -26,8 +31,17 @@ add_executable(lumotive_driver src/lumotive_driver.cpp src/lumotive_cloud_creati
 ament_target_dependencies(lumotive_driver rclcpp sensor_msgs)
 target_link_libraries(lumotive_driver ylm_client ${rclcpp_LIBRARIES})
 
+add_executable(api_driver src/api_driver.cpp)
+ament_target_dependencies(api_driver rclcpp Boost)
+target_link_libraries(api_driver YlmConfigurator ${rclcpp_LIBRARIES} ${Boost_LIBRARIES})
+
 install(TARGETS
   lumotive_driver
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(TARGETS
+  api_driver
   DESTINATION lib/${PROJECT_NAME}
 )
 
