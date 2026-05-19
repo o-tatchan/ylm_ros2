@@ -20,10 +20,22 @@
 #include "Data/PersistentSettings.h"
 #include "Data/TimeSyncStatus.h"
 
-#define ROS_LOOP_RATE 100ms     /**< loop rate. in this program, used in the api_sending_loop */
+#define LOOP_RATE 100ms     /**< loop rate. in this program, used in the api_sending_loop */
 #define YLM_STARTUP_TIME_SEC 60 /**< ylm startup time */
 #define LOOP_TIMEOUT_SEC 10     /**< timeout of startscan/stopscan api loop */
 #define HANDLER_TIMEOUT_SEC 2   /**< timeout of api handler */
+
+/**
+ * @enum API_COMMAND_TYPE
+ * @brief Command type for some operation using the API. not API type.
+ * @brief APIを使用した処理のコマンドタイプ. API単体のタイプではない.
+ */
+enum API_COMMAND_TYPE {
+    WAIT_INITIALIZATION ,
+    START_SCAN ,
+    STOP_SCAN ,
+    POWER_OFF 
+};
 
 using namespace std::chrono_literals;
 using namespace YlmConfigurator;
@@ -37,6 +49,68 @@ using HttpResponse = boost::beast::http::response<boost::beast::http::string_bod
 class LumotiveAPIDriver : public rclcpp::Node {
 private:
     Handler m_handler; /**< ylm api handler */
+
+    /**
+     * @brief   Some operation using API. ex) WAIT_INITIALIZATION use GetState API and return connection (successful or failure.)
+     * @param[in] commandType Command type of operation
+     * @param[out] none
+     * @return  successful or failure.
+    */
+    bool APICommand(API_COMMAND_TYPE commandType)
+    {
+        bool b_succeed = false;
+        bool b_connected = false;
+        State state;
+        std::string response;
+        switch( commandType ) {
+            case WAIT_INITIALIZATION :
+                b_connected = m_handler.tryGetState(response, state);
+                b_succeed = b_connected && (state.state == "ENERGIZED" || state.state == "SCANNING");
+                break ;
+            case START_SCAN :
+                b_succeed = m_handler.tryStartScan(response);
+                break ;
+            case STOP_SCAN :
+                b_succeed = m_handler.tryStopScan(response);
+                break ;
+            case POWER_OFF :
+                b_succeed = m_handler.tryPostDisable(response);
+                break ;
+            default :
+                break ;
+        }
+        return b_succeed;
+    }
+
+
+    /**
+     * @brief 
+     * @param[in] commandType   Command type of operation
+     * @param[in] timeout       timeout of api response [sec]
+     * @param[in] loopMsg       every loop message ( RCLCPP_INFO )
+     * @param[in] timeOutMsg    timeout error message (RCLCPP_ERROR)
+     * @param[out] none
+     * @return none
+    */
+    void APICommandLoop(API_COMMAND_TYPE commandType, int32_t timeout, std::string loopMsg, std::string timeOutMsg)
+    {
+        rclcpp::WallRate loopRate(LOOP_RATE);
+        bool b_succeed = false;
+        bool b_timeOut = false;
+        auto timeoutDuration = std::chrono::seconds(timeout);
+        auto startTime = std::chrono::steady_clock::now();
+        while ( !b_succeed && !b_timeOut ) {
+            loopRate.sleep();
+            RCLCPP_INFO(this->get_logger(), loopMsg.c_str());
+            auto currentTime = std::chrono::steady_clock::now();
+            b_succeed = APICommand(commandType);
+            b_timeOut = (currentTime - startTime) >= timeoutDuration;
+        }
+        if ( !b_succeed && b_timeOut ) {
+            RCLCPP_ERROR(this->get_logger(), timeOutMsg.c_str());
+            rclcpp::shutdown( );
+        }
+    }
 
 public:
     /**
@@ -57,44 +131,21 @@ public:
         m_handler.setTimeout(HANDLER_TIMEOUT_SEC);
         m_handler.setHost(sensor_ip);
 
-        rclcpp::WallRate loopRate(ROS_LOOP_RATE);
+        rclcpp::WallRate loopRate(LOOP_RATE);
         State state;
         std::string response;
         
         // waiting ylm-initialize
-        bool b_initialized = false;
-        bool b_timeOut = false;
-        auto timeoutDuration = std::chrono::seconds(YLM_STARTUP_TIME_SEC);
-        auto startTime = std::chrono::steady_clock::now();
-        while ( !b_initialized && !b_timeOut ) {
-            loopRate.sleep();
-            RCLCPP_INFO(this->get_logger(), "waiting initialize...");
-            auto currentTime = std::chrono::steady_clock::now();
-            bool b_connected = m_handler.tryGetState(response, state);
-            b_initialized = b_connected && (state.state == "ENERGIZED" || state.state == "SCANNING");
-            b_timeOut = (currentTime - startTime) >= timeoutDuration;
-        }
-        if ( !b_initialized && b_timeOut ) {
-            RCLCPP_ERROR(this->get_logger(), "ylm initialization timeout");
-            rclcpp::shutdown();
-        }
+        API_COMMAND_TYPE commandType = WAIT_INITIALIZATION;
+        std::string loopMsg = "waiting initialize...";
+        std::string timeOutMsg = "ylm initialization timeout";
+        APICommandLoop(commandType, YLM_STARTUP_TIME_SEC, loopMsg, timeOutMsg);
         
         // start scan
-        b_timeOut = false;
-        bool b_startScan = false;
-        timeoutDuration = std::chrono::seconds(LOOP_TIMEOUT_SEC);
-        startTime = std::chrono::steady_clock::now();
-        while ( !b_startScan && !b_timeOut ) {
-            loopRate.sleep();
-        RCLCPP_INFO(this->get_logger(), "waiting start_scan...");
-            auto currentTime = std::chrono::steady_clock::now();
-            b_startScan = m_handler.tryStartScan(response);
-            b_timeOut = (currentTime - startTime) >= timeoutDuration;
-        }
-        if ( !b_startScan && b_timeOut ) {
-            RCLCPP_ERROR(this->get_logger(), "ylm start_scan timeout");
-            rclcpp::shutdown();
-        }
+        commandType = START_SCAN;
+        loopMsg = "waiting start_scan...";
+        timeOutMsg = "ylm start_scan timeout";
+        APICommandLoop(commandType, YLM_STARTUP_TIME_SEC, loopMsg, timeOutMsg);
 
         RCLCPP_INFO(this->get_logger(), "scanning start !!");
     }
@@ -107,44 +158,24 @@ public:
     */
     ~LumotiveAPIDriver(void)
     {
-        rclcpp::WallRate loopRate(ROS_LOOP_RATE);
+        rclcpp::WallRate loopRate(LOOP_RATE);
         std::string response;
 
         //stop scan
-        bool b_stopScan = false;
-        bool b_timeOut = false;
-        auto timeoutDuration = std::chrono::seconds(LOOP_TIMEOUT_SEC);
-        auto startTime = std::chrono::steady_clock::now();
-        while ( !b_stopScan && !b_timeOut ) {
-            loopRate.sleep();
-        RCLCPP_INFO(this->get_logger(), "waiting stop_scan...");
-            auto currentTime = std::chrono::steady_clock::now();
-            b_stopScan = m_handler.tryStopScan(response);
-            b_timeOut = (currentTime - startTime) >= timeoutDuration;
-        }
-        if ( !b_stopScan && b_timeOut ) {
-            RCLCPP_ERROR(this->get_logger(), "ylm stop_scan timeout");
-            rclcpp::shutdown();
-        }
+        API_COMMAND_TYPE commandType = STOP_SCAN;
+        std::string loopMsg = "waiting stop_scan...";
+        std::string timeOutMsg = "ylm stop_scan timeout";
+        APICommandLoop(commandType, YLM_STARTUP_TIME_SEC, loopMsg, timeOutMsg);
+
 
         /*
          以下を有効にすると、ノードの終了時にYLMセンサの電源を自動で落とします. 
          (ノードを落とす度に電源を再投入することが必要になるため、コメントアウトしています.)
         // power off
-        b_timeOut = false;
-        bool b_powerOff = false;
-        startTime = std::chrono::steady_clock::now();
-        while ( !b_powerOff && !b_timeOut ) {
-            loopRate.sleep();
-            RCLCPP_INFO(this->get_logger(), "waiting power_off...");
-            auto currentTime = std::chrono::steady_clock::now();
-            b_powerOff = m_handler.tryPostDisable(response);
-            b_timeOut = (currentTime - startTime) >= timeoutDuration;
-        }
-        if ( !b_powerOff && b_timeOut ) {
-            RCLCPP_ERROR(this->get_logger(), "ylm start_scan timeout");
-            rclcpp::shutdown();
-        }
+        API_COMMAND_TYPE commandType = POWER_OFF;
+        std::string loopMsg = "waiting power_off...";
+        std::string timeOutMsg = "ylm power_off timeout";
+        APICommandLoop(commandType, YLM_STARTUP_TIME_SEC, loopMsg, timeOutMsg);
         */
 
         RCLCPP_INFO(this->get_logger(), "finish");
