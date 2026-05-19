@@ -20,8 +20,9 @@
 #include "Data/PersistentSettings.h"
 #include "Data/TimeSyncStatus.h"
 
-#define ROS_LOOP_RATE 100ms    /**< loop rate. in this program, used in the api_sending_loop */
-#define LOOP_TIMEOUT_SEC 30     /**< timeout of sending api loop */
+#define ROS_LOOP_RATE 100ms     /**< loop rate. in this program, used in the api_sending_loop */
+#define YLM_STARTUP_TIME_SEC 60 /**< ylm startup time */
+#define LOOP_TIMEOUT_SEC 10     /**< timeout of startscan/stopscan api loop */
 #define HANDLER_TIMEOUT_SEC 2   /**< timeout of api handler */
 
 using namespace std::chrono_literals;
@@ -56,21 +57,43 @@ public:
         m_handler.setTimeout(HANDLER_TIMEOUT_SEC);
         m_handler.setHost(sensor_ip);
 
-        rclcpp::WallRate loop_rate(ROS_LOOP_RATE);
+        rclcpp::WallRate loopRate(ROS_LOOP_RATE);
         State state;
         std::string response;
         
+        // waiting ylm-initialize
         bool b_initialized = false;
-        while ( !b_initialized ) {
-            loop_rate.sleep();
+        bool b_timeOut = false;
+        auto timeoutDuration = std::chrono::seconds(YLM_STARTUP_TIME_SEC);
+        auto startTime = std::chrono::steady_clock::now();
+        while ( !b_initialized && !b_timeOut ) {
+            loopRate.sleep();
             RCLCPP_INFO(this->get_logger(), "waiting initialize...");
+            auto currentTime = std::chrono::steady_clock::now();
             bool b_connected = m_handler.tryGetState(response, state);
-            b_initialized = b_connected && state.state!="INITIALIZE";
+            b_initialized = b_connected && (state.state == "ENERGIZED" || state.state == "SCANNING");
+            b_timeOut = (currentTime - startTime) >= timeoutDuration;
+        }
+        if ( !b_initialized && b_timeOut ) {
+            RCLCPP_ERROR(this->get_logger(), "ylm initialization timeout");
+            rclcpp::shutdown();
         }
         
+        // start scan
+        b_timeOut = false;
+        bool b_startScan = false;
+        timeoutDuration = std::chrono::seconds(LOOP_TIMEOUT_SEC);
+        startTime = std::chrono::steady_clock::now();
+        while ( !b_startScan && !b_timeOut ) {
+            loopRate.sleep();
         RCLCPP_INFO(this->get_logger(), "waiting start_scan...");
-        while (!m_handler.tryStartScan(response)) {
-            loop_rate.sleep();
+            auto currentTime = std::chrono::steady_clock::now();
+            b_startScan = m_handler.tryStartScan(response);
+            b_timeOut = (currentTime - startTime) >= timeoutDuration;
+        }
+        if ( !b_startScan && b_timeOut ) {
+            RCLCPP_ERROR(this->get_logger(), "ylm start_scan timeout");
+            rclcpp::shutdown();
         }
 
         RCLCPP_INFO(this->get_logger(), "scanning start !!");
@@ -84,19 +107,43 @@ public:
     */
     ~LumotiveAPIDriver(void)
     {
-        rclcpp::WallRate loop_rate(ROS_LOOP_RATE);
+        rclcpp::WallRate loopRate(ROS_LOOP_RATE);
         std::string response;
 
+        //stop scan
+        bool b_stopScan = false;
+        bool b_timeOut = false;
+        auto timeoutDuration = std::chrono::seconds(LOOP_TIMEOUT_SEC);
+        auto startTime = std::chrono::steady_clock::now();
+        while ( !b_stopScan && !b_timeOut ) {
+            loopRate.sleep();
         RCLCPP_INFO(this->get_logger(), "waiting stop_scan...");
-        while (!m_handler.tryStopScan(response)) {
-            loop_rate.sleep();
+            auto currentTime = std::chrono::steady_clock::now();
+            b_stopScan = m_handler.tryStopScan(response);
+            b_timeOut = (currentTime - startTime) >= timeoutDuration;
+        }
+        if ( !b_stopScan && b_timeOut ) {
+            RCLCPP_ERROR(this->get_logger(), "ylm stop_scan timeout");
+            rclcpp::shutdown();
         }
 
         /*
          以下を有効にすると、ノードの終了時にYLMセンサの電源を自動で落とします. 
          (ノードを落とす度に電源を再投入することが必要になるため、コメントアウトしています.)
-        while (!m_handler.tryPostDisable(response)) {
-            loop_rate.sleep();
+        // power off
+        b_timeOut = false;
+        bool b_powerOff = false;
+        startTime = std::chrono::steady_clock::now();
+        while ( !b_powerOff && !b_timeOut ) {
+            loopRate.sleep();
+            RCLCPP_INFO(this->get_logger(), "waiting power_off...");
+            auto currentTime = std::chrono::steady_clock::now();
+            b_powerOff = m_handler.tryPostDisable(response);
+            b_timeOut = (currentTime - startTime) >= timeoutDuration;
+        }
+        if ( !b_powerOff && b_timeOut ) {
+            RCLCPP_ERROR(this->get_logger(), "ylm start_scan timeout");
+            rclcpp::shutdown();
         }
         */
 
