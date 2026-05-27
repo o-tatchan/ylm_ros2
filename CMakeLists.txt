@@ -15,7 +15,7 @@ endif()
 # find dependencies
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(Boost REQUIRED COMPONENTS thread json)
+find_package(Boost 1.75.0 REQUIRED COMPONENTS thread json)
 
 set(YLM_INCLUDE_DIRS
     "include;")
