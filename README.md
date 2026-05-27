@@ -76,19 +76,19 @@ call install\setup.bat
 
 To launch the node with a livestream from the M20 lidar, use:
 ```
-ros2 launch ylm_ros2 m20_launcher.launch.py sensor_ip_:=192.168.0.10
+ros2 launch ylm_ros2 m20_launcher.launch.py
 ```
-
+Launch options:
+- sensor_ip_  (default: 192.168.0.10)
+- sensor_port_ (default: 10940)
+- launch_api_client_ (default: true)
+  - if set to `true` , scanning starts when the launch starts and scanning stop when the launch finish.
+  - if set to `false`, need to start_scan from the web UI ( http://`sensor_ip_` ).
+  
 Tip for showing help related to input args:
 ```
 ros2 launch ylm_ros2 m20_launcher.launch.py --show-args
 ```
-
-To launch the node with api_driver:
-```
-ros2 launch ylm_ros2 m20_launcher_extended.launch.py sensor_ip_:=192.168.0.10 launch_api_client_:=<true or false (default:true)> launch_rviz_:=<true or false (default:true)>
-```
-(if launch_api_client_:=true , auto start scan and stop scan.)
 
 Config file presentation
 -------------------------
