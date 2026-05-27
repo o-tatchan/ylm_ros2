@@ -10,15 +10,7 @@
 #include <chrono>
 
 #include "YlmHandler.h"
-#include "Data/ScanParameterData.h"
-#include "Data/SystemVersionData.h"
-#include "Data/AngleRangeData.h"
-#include "Data/MaxRangeData.h"
-#include "Data/ScanParameterOpt.h"
 #include "Data/State.h"
-#include "Data/SensorId.h"
-#include "Data/PersistentSettings.h"
-#include "Data/TimeSyncStatus.h"
 
 #define LOOP_RATE 100ms     /**< loop rate. in this program, used in the api_sending_loop */
 #define YLM_STARTUP_TIME_SEC 60 /**< ylm startup time */
@@ -119,7 +111,7 @@ public:
      * @param[out] none
      * @return none
     */
-    LumotiveAPIDriver(void) : Node("lumotive_api_driver")
+    LumotiveAPIDriver(void) : Node("lumotive_api_driver"), m_handler()
     {
         // ros parameters
         std::string sensor_ip = "192.168.0.10"; /**< default value */
@@ -127,11 +119,9 @@ public:
         this->get_parameter("sensor_ip", sensor_ip);
 
         // handler setting
-        m_handler = Handler();
         m_handler.setTimeout(HANDLER_TIMEOUT_SEC);
         m_handler.setHost(sensor_ip);
 
-        rclcpp::WallRate loopRate(LOOP_RATE);
         State state;
         std::string response;
         
@@ -158,7 +148,6 @@ public:
     */
     ~LumotiveAPIDriver(void)
     {
-        rclcpp::WallRate loopRate(LOOP_RATE);
         std::string response;
 
         //stop scan
