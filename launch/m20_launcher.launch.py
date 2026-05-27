@@ -16,7 +16,7 @@ def generate_launch_description():
     ld = LaunchDescription([
         DeclareLaunchArgument('sensor_ip_', default_value="192.168.0.10", description='IP of Lumotive sensor to connect to.'),
         DeclareLaunchArgument('sensor_port_', default_value="10940", description='Port of Lumotive sensor to connect to.'),
-        DeclareLaunchArgument('launch_api_client_', default_value="true", description='Launch flag of api client. if true, YLM auto start scan.')
+        DeclareLaunchArgument('launch_api_client_', default_value="true", description='Launch flag of api client. if true, scanning starts when the launch starts and scanning stop when the launch finish.'),
     ])
     
     # load yaml file
