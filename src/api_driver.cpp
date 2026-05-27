@@ -100,7 +100,7 @@ private:
         }
         if ( !b_succeed && b_timeOut ) {
             RCLCPP_ERROR(this->get_logger(), timeOutMsg.c_str());
-            rclcpp::shutdown( );
+            throw std::runtime_error("An error has occurred. The node will be terminated.");
         }
     }
 
@@ -158,15 +158,15 @@ public:
 
 
         /*
-         以下を有効にすると、ノードの終了時にYLMセンサの電源を自動で落とします. 
-         (ノードを落とす度に電源を再投入することが必要になるため、コメントアウトしています.)
+        //  以下を有効にすると、ノードの終了時にYLMセンサの電源を自動で落とします. 
+        //  (ノードを落とす度に電源を再投入することが必要になるため、コメントアウトしています.)
         // power off
-        API_COMMAND_TYPE commandType = POWER_OFF;
-        std::string loopMsg = "waiting power_off...";
-        std::string timeOutMsg = "ylm power_off timeout";
+        commandType = POWER_OFF;
+        loopMsg = "waiting power_off...";
+        timeOutMsg = "ylm power_off timeout";
         APICommandLoop(commandType, YLM_STARTUP_TIME_SEC, loopMsg, timeOutMsg);
         */
-
+        
         RCLCPP_INFO(this->get_logger(), "finish");
     }
 
