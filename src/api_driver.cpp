@@ -12,14 +12,13 @@
 #include "YlmHandler.h"
 #include "Data/State.h"
 
-#define LOOP_RATE 100ms     /**< loop rate. in this program, used in the api_sending_loop */
-#define YLM_STARTUP_TIME_SEC 60 /**< ylm startup time */
-#define LOOP_TIMEOUT_SEC 10     /**< timeout of startscan/stopscan api loop */
-#define HANDLER_TIMEOUT_SEC 2   /**< timeout of api handler */
-#define DEFAULT_IP "192.168.0.10" /**< default value of ylm ip address */
+#define LOOP_RATE            100ms          /**< loop rate. in this program, used in the api_sending_loop */
+#define YLM_STARTUP_TIME_SEC 60             /**< ylm startup time */
+#define LOOP_TIMEOUT_SEC     10             /**< timeout of startscan/stopscan api loop */
+#define HANDLER_TIMEOUT_SEC  2              /**< timeout of api handler */
+#define DEFAULT_IP           "192.168.0.10" /**< default value of ylm ip address */
 
 typedef int32_t SINT32;
-
 
 /**
  * @enum API_COMMAND_TYPE
@@ -27,10 +26,10 @@ typedef int32_t SINT32;
  * @brief APIを使用した処理のコマンドタイプ. API単体のタイプではない.
  */
 enum class API_COMMAND_TYPE {
-    WAIT_INITIALIZATION ,
-    START_SCAN ,
-    STOP_SCAN ,
-    POWER_OFF 
+    WAIT_INITIALIZATION,
+    START_SCAN,
+    STOP_SCAN,
+    POWER_OFF
 };
 
 using namespace std::chrono_literals;
@@ -43,14 +42,16 @@ using HttpResponse = boost::beast::http::response<boost::beast::http::string_bod
  * @brief ROS2 node class of ylm api crient 
 */
 class LumotiveAPIDriver : public rclcpp::Node {
-    public:
+public:
     /**
      * @brief constructor
      * @param[in] none
      * @param[out] none
      * @return none
     */
-    LumotiveAPIDriver(void) : Node("lumotive_api_driver"), m_handler()
+    LumotiveAPIDriver(void)
+        : Node("lumotive_api_driver")
+        , m_handler()
     {
         mb_apiTimeOut = false;
 
@@ -63,15 +64,12 @@ class LumotiveAPIDriver : public rclcpp::Node {
         m_handler.setTimeout(HANDLER_TIMEOUT_SEC);
         m_handler.setHost(sensor_ip);
 
-        State state;
-        std::string response;
-        
         // waiting ylm-initialize
         API_COMMAND_TYPE commandType = API_COMMAND_TYPE::WAIT_INITIALIZATION;
         std::string loopMsg = "waiting initialize...";
         std::string timeOutMsg = "ylm initialization timeout";
         bool b_commandSuccess = APICommandLoop(commandType, YLM_STARTUP_TIME_SEC, loopMsg, timeOutMsg);
-        if ( !b_commandSuccess ) {
+        if (!b_commandSuccess) {
             return;
         }
 
@@ -80,7 +78,7 @@ class LumotiveAPIDriver : public rclcpp::Node {
         loopMsg = "waiting start_scan...";
         timeOutMsg = "ylm start_scan timeout";
         b_commandSuccess = APICommandLoop(commandType, LOOP_TIMEOUT_SEC, loopMsg, timeOutMsg);
-        if ( !b_commandSuccess ) {
+        if (!b_commandSuccess) {
             return;
         }
 
@@ -95,14 +93,12 @@ class LumotiveAPIDriver : public rclcpp::Node {
     */
     ~LumotiveAPIDriver(void)
     {
-        std::string response;
-
         //stop scan
         API_COMMAND_TYPE commandType = API_COMMAND_TYPE::STOP_SCAN;
         std::string loopMsg = "waiting stop_scan...";
         std::string timeOutMsg = "ylm stop_scan timeout";
         bool b_commandSuccess = APICommandLoop(commandType, LOOP_TIMEOUT_SEC, loopMsg, timeOutMsg);
-        if ( !b_commandSuccess ) {
+        if (!b_commandSuccess) {
             return;
         }
 
@@ -118,7 +114,7 @@ class LumotiveAPIDriver : public rclcpp::Node {
             return;
         }
         */
-        
+
         RCLCPP_INFO(this->get_logger(), "finish");
     }
 
@@ -131,13 +127,13 @@ class LumotiveAPIDriver : public rclcpp::Node {
     */
     void ShutdownIfTimeOut(void)
     {
-        if( mb_apiTimeOut ) {
+        if (mb_apiTimeOut) {
             rclcpp::shutdown();
         }
     }
 
 private:
-    Handler m_handler; /**< ylm api handler */
+    Handler m_handler;  /**< ylm api handler */
     bool mb_apiTimeOut; /**< error flag */
 
     /**
@@ -152,30 +148,29 @@ private:
         bool b_connect = false;
         State state;
         std::string response;
-        switch( commandType ) {
-            case API_COMMAND_TYPE::WAIT_INITIALIZATION :
+        switch (commandType) {
+            case API_COMMAND_TYPE::WAIT_INITIALIZATION:
                 b_connect = m_handler.tryGetState(response, state);
                 b_success = b_connect && (state.state == "ENERGIZED" || state.state == "SCANNING");
-                break ;
-            case API_COMMAND_TYPE::START_SCAN :
+                break;
+            case API_COMMAND_TYPE::START_SCAN:
                 m_handler.tryStartScan(response);
                 b_connect = m_handler.tryGetState(response, state);
                 b_success = b_connect && (state.state == "SCANNING");
-                break ;
-            case API_COMMAND_TYPE::STOP_SCAN :
+                break;
+            case API_COMMAND_TYPE::STOP_SCAN:
                 m_handler.tryStopScan(response);
                 b_connect = m_handler.tryGetState(response, state);
                 b_success = b_connect && (state.state == "ENERGIZED");
-                break ;
-            case API_COMMAND_TYPE::POWER_OFF :
+                break;
+            case API_COMMAND_TYPE::POWER_OFF:
                 b_success = m_handler.tryPostDisable(response);
-                break ;
-            default :
-                break ;
+                break;
+            default:
+                break;
         }
         return b_success;
     }
-
 
     /**
      * @brief 
@@ -193,22 +188,20 @@ private:
         bool b_timeOut = false;
         auto timeoutDuration = std::chrono::seconds(timeout);
         auto startTime = std::chrono::steady_clock::now();
-        while ( !b_success && !b_timeOut ) {
+        while (!b_success && !b_timeOut) {
             loopRate.sleep();
             RCLCPP_INFO(this->get_logger(), loopMsg.c_str());
             auto currentTime = std::chrono::steady_clock::now();
             b_success = APICommand(commandType);
             b_timeOut = (currentTime - startTime) >= timeoutDuration;
         }
-        if ( !b_success && b_timeOut ) {
+        if (!b_success && b_timeOut) {
             RCLCPP_ERROR(this->get_logger(), timeOutMsg.c_str());
             mb_apiTimeOut = true;
             return false;
         }
         return true;
     }
-
-
 };
 
 /**
@@ -219,11 +212,11 @@ private:
 */
 int main(int argc, char **argv)
 {
-    rclcpp::init(argc, argv);   
+    rclcpp::init(argc, argv);
     auto node = std::make_shared<LumotiveAPIDriver>();
     node->ShutdownIfTimeOut();
     if (!rclcpp::ok()) {
-        return 1;  // shutdown 済みなら終了.
+        return 1; // shutdown 済みなら終了.
     }
 
     rclcpp::spin(node);
